@@ -1,9 +1,65 @@
 import { Link } from "react-router";
+import { useState, useEffect, useRef } from "react";
 import { useSidebar } from "../context/SidebarContext";
 import { ThemeToggleButton } from "../components/common/ThemeToggleButton";
+import { getStudents, Student } from "../services/studentService";
+import StudentAttendanceDetails from "../components/students/StudentAttendanceDetails";
 
 const AppHeader: React.FC = () => {
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [searchResults, setSearchResults] = useState<Student[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
+  const [showResults, setShowResults] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+
+  // Search for students as user types
+  useEffect(() => {
+    const searchStudents = async () => {
+      if (searchTerm.length < 2) {
+        setSearchResults([]);
+        setShowResults(false);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        const response = await getStudents({ name: searchTerm });
+        setSearchResults(response.data);
+        setShowResults(true);
+      } catch (error) {
+        console.error('Error searching students:', error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      searchStudents();
+    }, 300);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowResults(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleStudentClick = (student: Student) => {
+    setSelectedStudent(student);
+    setShowResults(false);
+    setSearchTerm("");
+  };
 
   const handleToggle = () => {
     if (window.innerWidth >= 1024) {
@@ -65,31 +121,72 @@ const AppHeader: React.FC = () => {
             </span>
           </Link>
 
-          <div className="flex-1 lg:block">
+          <div className="flex-1 lg:block" ref={searchRef}>
             <form onSubmit={(e) => e.preventDefault()}>
               <div className="relative">
                 <span className="absolute -translate-y-1/2 pointer-events-none left-4 top-1/2">
-                  <svg
-                    className="fill-gray-500 dark:fill-gray-400"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 20 20"
-                    fill="none"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                      d="M3.04175 9.37363C3.04175 5.87693 5.87711 3.04199 9.37508 3.04199C12.8731 3.04199 15.7084 5.87693 15.7084 9.37363C15.7084 12.8703 12.8731 15.7053 9.37508 15.7053C5.87711 15.7053 3.04175 12.8703 3.04175 9.37363ZM9.37508 1.54199C5.04902 1.54199 1.54175 5.04817 1.54175 9.37363C1.54175 13.6991 5.04902 17.2053 9.37508 17.2053C11.2674 17.2053 13.003 16.5344 14.357 15.4176L17.177 18.238C17.4699 18.5309 17.9448 18.5309 18.2377 18.238C18.5306 17.9451 18.5306 17.4703 18.2377 17.1774L15.418 14.3573C16.5365 13.0033 17.2084 11.2669 17.2084 9.37363C17.2084 5.04817 13.7011 1.54199 9.37508 1.54199Z"
-                      fill=""
-                    />
-                  </svg>
+                  {isSearching ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  ) : (
+                    <svg
+                      className="fill-gray-500 dark:fill-gray-400"
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        clipRule="evenodd"
+                        d="M3.04175 9.37363C3.04175 5.87693 5.87711 3.04199 9.37508 3.04199C12.8731 3.04199 15.7084 5.87693 15.7084 9.37363C15.7084 12.8703 12.8731 15.7053 9.37508 15.7053C5.87711 15.7053 3.04175 12.8703 3.04175 9.37363ZM9.37508 1.54199C5.04902 1.54199 1.54175 5.04817 1.54175 9.37363C1.54175 13.6991 5.04902 17.2053 9.37508 17.2053C11.2674 17.2053 13.003 16.5344 14.357 15.4176L17.177 18.238C17.4699 18.5309 17.9448 18.5309 18.2377 18.238C18.5306 17.9451 18.5306 17.4703 18.2377 17.1774L15.418 14.3573C16.5365 13.0033 17.2084 11.2669 17.2084 9.37363C17.2084 5.04817 13.7011 1.54199 9.37508 1.54199Z"
+                        fill=""
+                      />
+                    </svg>
+                  )}
                 </span>
                 <input
                   type="text"
                   placeholder="Search student..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onFocus={() => searchResults.length > 0 && setShowResults(true)}
                   className="dark:bg-dark-900 h-11 w-full rounded-lg border border-gray-200 bg-transparent py-2.5 pl-12 pr-4 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-500/10 dark:border-gray-800 dark:bg-gray-900 dark:bg-white/[0.03] dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800"
                 />
+
+                {/* Search Results Dropdown */}
+                {showResults && searchResults.length > 0 && (
+                  <div className="absolute z-[999999] w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl max-h-80 overflow-y-auto">
+                    {searchResults.map((student) => (
+                      <button
+                        key={student._id}
+                        onClick={() => handleStudentClick(student)}
+                        className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700 border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors"
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {student.name}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {student.year} • {student.sex}
+                            </p>
+                          </div>
+                          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* No Results Message */}
+                {showResults && searchTerm.length >= 2 && searchResults.length === 0 && !isSearching && (
+                  <div className="absolute z-[999999] w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4">
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No students found</p>
+                  </div>
+                )}
               </div>
             </form>
           </div>
@@ -98,6 +195,27 @@ const AppHeader: React.FC = () => {
           <ThemeToggleButton />
         </div>
       </div>
+
+      {/* Student Attendance Details Modal */}
+      {selectedStudent && (
+        <div className="fixed inset-0 z-[9999999] flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
+            <button
+              onClick={() => setSelectedStudent(null)}
+              className="absolute top-4 right-4 z-10 p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 bg-white dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              aria-label="Close"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <StudentAttendanceDetails
+              student={selectedStudent}
+              onClose={() => setSelectedStudent(null)}
+            />
+          </div>
+        </div>
+      )}
     </header>
   );
 };

@@ -6,6 +6,7 @@ import AttendanceByGrade from "../../components/ecommerce/AttendanceByGrade";
 import PageMeta from "../../components/common/PageMeta";
 
 export default function Home() {
+
   return (
     <>
       <PageMeta
