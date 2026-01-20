@@ -1,0 +1,6 @@
+name,sex,year,studentId,email,phone,address,dateOfBirth
+John Smith,Male,Year 7,STU001,john.smith@example.com,555-0101,123 Main St,2010-05-15
+Jane Doe,Female,Year 8,STU002,jane.doe@example.com,555-0102,456 Oak Ave,2009-08-22
+Michael Johnson,M,9,STU003,,,
+Sarah Williams,F,Year 10,,,555-0104,,
+David Brown,Male,EY,STU005,,,,2016-03-10
