@@ -64,16 +64,14 @@ export default function AttendanceTrendsChart() {
         const attendanceData = await Promise.all(
           dates.map(async (date, index) => {
             try {
-              let startDate, endDate;
+              let startDate;
               
               if (period === 1) {
                 // Daily data
                 startDate = date.toISOString().split('T')[0];
-                endDate = startDate;
               } else {
                 // Monthly aggregation
                 startDate = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
-                endDate = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
               }
 
               const response = await getAttendanceByDate(startDate);
@@ -180,7 +178,6 @@ export default function AttendanceTrendsChart() {
       fontFamily: "Outfit",
       fontSize: "14px",
       markers: {
-        height: 10,
         radius: 12,
       },
     },
