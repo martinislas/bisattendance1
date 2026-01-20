@@ -68,7 +68,8 @@ export default function AttendanceTrendsChart() {
               
               if (period === 1) {
                 // Daily data
-                startDate = endDate = date.toISOString().split('T')[0];
+                startDate = date.toISOString().split('T')[0];
+                endDate = startDate;
               } else {
                 // Monthly aggregation
                 startDate = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
@@ -179,7 +180,6 @@ export default function AttendanceTrendsChart() {
       fontFamily: "Outfit",
       fontSize: "14px",
       markers: {
-        width: 10,
         height: 10,
         radius: 12,
       },

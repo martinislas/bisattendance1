@@ -144,8 +144,6 @@ export default function StudentAttendanceDetails({
     fetchAttendanceData();
   }, [student._id, viewMode, selectedPeriod, selectedDate]);
 
-  const totalRecorded = data.present + data.late + data.excused + data.unexcused;
-
   const getPercentage = (value: number) => {
     if (data.totalDays === 0) return "0.0";
     return ((value / data.totalDays) * 100).toFixed(1);
