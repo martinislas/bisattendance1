@@ -27,7 +27,7 @@ async function callGroqAPI(prompt: string): Promise<string> {
         }
       ],
       temperature: 0.7,
-      max_tokens: 1024
+      max_tokens: 2048
     })
   });
   
@@ -44,22 +44,22 @@ async function callGroqAPI(prompt: string): Promise<string> {
 const SYSTEM_PROMPT = `You are an AI assistant for a school attendance management system. You have access to a MongoDB database with the following collections:
 
 **Students Collection:**
-- name: string (student's full name)
-- studentId: string (unique student ID)
+- name: string (student's full name) - ALWAYS search by name only
 - sex: 'Male' | 'Female'
-- year: string (EY, Year 1-13)
-- dateOfBirth: Date (optional)
-- email: string (optional)
-- phone: string (optional)
-- address: string (optional)
+- year: string (EY, Year 1, Year 2, Year 3, Year 4, Year 5, Year 6, Year 7, Year 8, Year 9, Year 10, Year 11, Year 12)
 
 **Attendance Collection:**
-- studentId: string (reference)
-- student: ObjectId (reference to Student)
+- student: reference to Student
 - date: Date
 - status: 'Present' | 'Absent' | 'Late' | 'Excused'
 - reason: string (optional)
 - notes: string (optional)
+
+IMPORTANT RULES:
+- NEVER use or mention student IDs
+- ALWAYS search students by name only
+- For date queries, use "today" or "yesterday" keywords
+- Keep filters simple: only use name, year, sex, date, and status
 
 When a user asks questions:
 1. Analyze what data they need
@@ -102,7 +102,7 @@ export const processChat = async (req: Request, res: Response) => {
 
     // Build conversation context
     const history = conversationHistory || [];
-    const contextMessages = history.slice(-5); // Keep last 5 messages for context
+    const contextMessages = history.slice(-3); // Keep last 3 messages for context
 
     // Create the prompt
     const prompt = `${SYSTEM_PROMPT}
@@ -192,7 +192,12 @@ async function queryStudents(filters: any) {
     
     if (filters.year) query.year = filters.year;
     if (filters.sex) query.sex = filters.sex;
-    if (filters.name) query.name = { $regex: filters.name, $options: 'i' };
+    if (filters.name) {
+      // Handle simple string name filters only
+      if (typeof filters.name === 'string') {
+        query.name = { $regex: filters.name, $options: 'i' };
+      }
+    }
     if (filters.studentId) query.studentId = filters.studentId;
     
     const students = await Student.find(query).limit(100);
@@ -215,12 +220,21 @@ async function queryAttendance(filters: any) {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
       query.date = { $gte: today, $lt: tomorrow };
-    } else if (filters.date) {
+    } else if (filters.date === 'yesterday') {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      query.date = { $gte: yesterday, $lt: today };
+    } else if (filters.date && typeof filters.date === 'string') {
       const date = new Date(filters.date);
-      date.setHours(0, 0, 0, 0);
-      const nextDay = new Date(date);
-      nextDay.setDate(nextDay.getDate() + 1);
-      query.date = { $gte: date, $lt: nextDay };
+      if (!isNaN(date.getTime())) {
+        date.setHours(0, 0, 0, 0);
+        const nextDay = new Date(date);
+        nextDay.setDate(nextDay.getDate() + 1);
+        query.date = { $gte: date, $lt: nextDay };
+      }
     }
     
     if (filters.status) query.status = filters.status;
@@ -298,16 +312,24 @@ async function queryStats(filters: any) {
 // Generate natural language response with data
 async function generateResponseWithData(question: string, dataType: string, data: any) {
   try {
+    // Limit data size to avoid token limits
+    let dataToShow = data;
+    if (Array.isArray(data) && data.length > 20) {
+      dataToShow = data.slice(0, 20);
+      dataToShow.push({ note: `... and ${data.length - 20} more records` });
+    }
+    
     const prompt = `User asked: "${question}"
 
 I retrieved the following data from the database:
-${JSON.stringify(data, null, 2)}
+${JSON.stringify(dataToShow, null, 2)}
 
 Provide a clear, concise, and helpful response to the user's question based on this data. Format the response in a friendly, conversational way. If there are specific numbers or lists, present them clearly.`;
 
     return await callGroqAPI(prompt);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Generate response error:', error);
+    console.error('Error details:', error.message);
     return 'I found some data but had trouble formatting the response. Please try rephrasing your question.';
   }
 }
