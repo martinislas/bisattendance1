@@ -177,9 +177,6 @@ export default function AttendanceTrendsChart() {
       horizontalAlign: "left",
       fontFamily: "Outfit",
       fontSize: "14px",
-      markers: {
-        radius: 12,
-      },
     },
     yaxis: {
       labels: {
